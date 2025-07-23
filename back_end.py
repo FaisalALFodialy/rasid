@@ -63,33 +63,30 @@ class TenderScraper:
             f"&MultipleSearch=&TenderCategory=&TenderActivityId={self.activity_id}"
             f"&ReferenceNumber=&TenderNumber=&agency=&ConditionaBookletRange=&PublishDateId=5"
         )
-        self.data = []  # ✅ Moved here
-        self.service = Service(ChromeDriverManager().install())
-        self.options = webdriver.ChromeOptions()
-        self.options.add_argument("--headless")  # Run in headless mode (no browser popup)
-        self.driver = webdriver.Chrome(service=self.service, options=self.options)
-
-    # def __init__(self, category,activity_id):
-    #     self.activity_id = activity_id
-    #     self.base_url = f"https://tenders.etimad.sa/Tender/AllTendersForVisitor?&MultipleSearch=&TenderCategory=&TenderActivityId={self.activity_id}&ReferenceNumber=&TenderNumber=&agency=&ConditionaBookletRange=&PublishDateId=5"
-    #     self.data = []
-    #     self.service = Service(ChromeDriverManager().install())
-    #     self.options = webdriver.ChromeOptions()
-    #     self.options.add_argument("--headless")  # Run in headless mode
-    #     self.driver = webdriver.Chrome(service=self.service, options=self.options)
+        self.data = []
 
     def scrape_tenders(self, max_pages=40):
         """Scrapes the tenders data by clicking 'Next' until max_pages or no next button."""
-        self.driver.get(self.base_url + "1")
-        time.sleep(4)
 
         from selenium.webdriver.common.by import By
         from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 
+        # ✅ Setup Chrome only when this function is called
+        options = Options()
+        options.binary_location = "/usr/bin/chromium"
+        options.add_argument('--headless')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--no-sandbox')
+        service = Service("/usr/bin/chromedriver")
+        driver = webdriver.Chrome(service=service, options=options)
+
+        driver.get(self.base_url + "1")
+        time.sleep(4)
+
         page_count = 0
         while page_count < max_pages:
             print(f"Scraping page {page_count + 1}...")
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
             cards = soup.find_all('div', class_='tender-card')
 
             for card in cards:
@@ -115,20 +112,19 @@ class TenderScraper:
                 except Exception as e:
                     print(f"Error on card in page {page_count + 1}: {e}")
 
-            # Try to click "Next"
             try:
-                next_button = self.driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
+                next_button = driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
                 if "disabled" in next_button.get_attribute("class").lower():
                     print("Next button is disabled. Reached last page.")
                     break
-                self.driver.execute_script("arguments[0].click();", next_button)
+                driver.execute_script("arguments[0].click();", next_button)
                 time.sleep(3)
                 page_count += 1
-            except (NoSuchElementException, ElementClickInterceptedException) as e:
+            except (NoSuchElementException, ElementClickInterceptedException):
                 print("Next button not found or clickable. Ending pagination.")
                 break
 
-        self.driver.quit()
+        driver.quit()
         print("Scraping complete.")
         return self.data
 
