@@ -48,7 +48,6 @@ CATEGORY_ID_MAP = {
 }
 
 class TenderScraper:
-    """Scrapes tender data from the Etimad website."""
     def __init__(self, category):
         self.activity_id = CATEGORY_ID_MAP.get(category)
         if self.activity_id is None:
@@ -62,20 +61,17 @@ class TenderScraper:
         self.data = []
 
     def scrape_tenders(self, max_pages=40):
-        """Scrapes the tenders data by clicking 'Next' until max_pages or no next button."""
-
         from selenium.webdriver.common.by import By
         from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 
-        # ✅ Setup Chrome only when this function is called
         options = Options()
-        options.binary_location = "/usr/bin/chromium"
+        options.binary_location = "/usr/bin/chromium-browser"
         options.add_argument('--headless')
-        options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+
         service = Service("/usr/bin/chromedriver")
         driver = webdriver.Chrome(service=service, options=options)
-
         driver.get(self.base_url + "1")
         time.sleep(4)
 
