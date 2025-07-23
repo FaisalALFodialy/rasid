@@ -178,7 +178,7 @@ elif menu == "Schedule Opportunities":
             )
 
 
-            st.success("Schedule preferences saved! You will receive updates via email.")
+            st.success("Schedule preferences saved! for now you will receive updates via email after 3-4 minutes.")
             
             try:
                 job = RasidJob(
@@ -187,7 +187,7 @@ elif menu == "Schedule Opportunities":
                     receiver_emails=[session_email],
                     category=category
                 )
-                job()
+                job.run()
                 st.success("Scraping done and email sent!")
             except ValueError as ve:
                 st.error(str(ve))
