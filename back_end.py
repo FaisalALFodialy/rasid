@@ -15,6 +15,7 @@ from email import encoders
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
 
 options = Options()
 options.add_argument('--headless')
@@ -23,7 +24,9 @@ options.add_argument('--disable-dev-shm-usage')
 options.add_argument('--disable-gpu')
 options.add_argument('--window-size=1920x1080')
 
-driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+chrome_path = ChromeDriverManager().install()
+service = Service(executable_path=chrome_path)
+driver = webdriver.Chrome(service=service, options=options)
 
 # Mapping from category name to TenderActivityId
 CATEGORY_ID_MAP = {
