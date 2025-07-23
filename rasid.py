@@ -187,6 +187,7 @@ elif menu == "Schedule Opportunities":
                     receiver_emails=[session_email],
                     category=category
                 )
+                job()
                 st.success("Scraping done and email sent!")
             except ValueError as ve:
                 st.error(str(ve))
