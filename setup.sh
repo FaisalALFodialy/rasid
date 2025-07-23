@@ -1,5 +1,9 @@
 #!/bin/bash
 
-# Update package list and install Chromium and Chromedriver
+# Install Chromium and Chromedriver
 apt-get update
-apt-get install -y chromium chromium-driver
+apt-get install -y chromium-browser chromium-chromedriver
+
+# Link to expected locations
+ln -s /usr/bin/chromedriver /usr/local/bin/chromedriver
+ln -s /usr/bin/chromium-browser /usr/bin/chrome
