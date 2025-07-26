@@ -14,6 +14,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+import requests
+from bs4 import BeautifulSoup
 
 # ✅ Category mapping
 CATEGORY_ID_MAP = {
@@ -49,32 +51,23 @@ class TenderScraper:
         )
         self.data = []
 
-    def scrape_tenders(self, max_pages=1):  # Keep 1 page for test
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.binary_location = "/usr/bin/chromium-browser"
-    
-        service = Service("/usr/bin/chromedriver")
-        try:
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-        except Exception as e:
-            print("❌ Failed to start ChromeDriver:", e)
-            raise
-    
-        driver.get(self.base_url)
-    
-        time.sleep(5)  # Wait for JS to render
-    
-        page_count = 0
-        while page_count < max_pages:
-            print(f"Scraping page {page_count + 1}...")
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
+    def scrape_tenders(self, max_pages=3):
+        session = requests.Session()
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
+        for page in range(1, max_pages + 1):
+            url = self.base_url + f"&page={page}"
+            print(f"🔍 Fetching page {page}...")
+            response = session.get(url, headers=headers)
+            soup = BeautifulSoup(response.content, 'html.parser')
             cards = soup.find_all('div', class_='tender-card')
-    
+
             if not cards:
-                print("⚠️ No tender cards found.")
+                print("⚠️ No tenders found on page.")
+                break
+
             for card in cards:
                 try:
                     deadline = card.find('div').find('span').text.strip()
@@ -82,7 +75,7 @@ class TenderScraper:
                     gov_desc = card.find('div').find('p').text.strip()
                     type_tag = card.select_one('label.ml-3 + span')
                     activity_type = type_tag.text.strip() if type_tag else "N/A"
-    
+
                     self.data.append({
                         'Title': title,
                         'Government Description': gov_desc,
@@ -91,21 +84,9 @@ class TenderScraper:
                     })
                 except Exception as e:
                     print("❌ Error parsing card:", e)
-    
-            try:
-                next_button = driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
-                if "disabled" in next_button.get_attribute("class").lower():
-                    break
-                driver.execute_script("arguments[0].click();", next_button)
-                time.sleep(3)
-                page_count += 1
-            except Exception as e:
-                print("⚠️ No next button or not clickable:", e)
-                break
-    
-        driver.quit()
-        return self.data
 
+        print("✅ Scraping done.")
+        return self.data
 
 
 class ExcelReportGenerator:
