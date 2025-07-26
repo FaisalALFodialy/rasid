@@ -7,7 +7,6 @@ import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 from bs4 import BeautifulSoup
@@ -51,19 +50,20 @@ class TenderScraper:
         )
         self.data = []
 
-    def scrape_tenders(self, max_pages=40):
-        from selenium.webdriver.common.by import By
-    
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-    
-        options.binary_location = "/usr/bin/chromium-browser"
-        service = Service("/usr/bin/chromedriver")  # use system installed version
-    
-        driver = webdriver.Chrome(service=service, options=options)
-        driver.get(self.base_url + "1")
+    class TenderScraper:
+    def scrape_tenders(self):
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.binary_location = "/usr/bin/chromium-browser"
+
+        service = Service("/usr/bin/chromedriver")  # use system driver
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
+        driver.get("https://tenders.etimad.sa/Tender/AllTendersForVisitor")  # test load
+        print("✅ Browser loaded successfully.")
+        driver.quit()
         time.sleep(4)
 
         page_count = 0
