@@ -9,7 +9,6 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException, WebDriverException
-from bs4 import BeautifulSoup
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -18,6 +17,7 @@ import requests
 from bs4 import BeautifulSoup
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from playwright.sync_api import sync_playwright
 
 # ✅ Category mapping
 CATEGORY_ID_MAP = {
@@ -59,41 +59,48 @@ class TenderScraper:
         }
         self.data = []
 
-
     def scrape_tenders(self, max_pages=3):
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context()
+            page = context.new_page()
 
-        for page in range(1, max_pages + 1):
-            self.params["PageNumber"] = page
-            print(f"📄 Fetching page {page}...")
+            for page_number in range(1, max_pages + 1):
+                print(f"📄 Scraping page {page_number}...")
+                self.params["PageNumber"] = page_number
 
-            response = requests.get(self.base_url, params=self.params, headers=headers)
-            soup = BeautifulSoup(response.content, "html.parser")
+                # Build full URL with query string
+                url = self.base_url + "?" + "&".join([f"{k}={v}" for k, v in self.params.items()])
+                page.goto(url, wait_until="networkidle")
 
-            cards = soup.find_all("div", class_="tender-card")
-            if not cards:
-                print("⚠️ No tenders found.")
-                break
-
-            for card in cards:
                 try:
-                    deadline = card.find("div").find("span").text.strip()
-                    title = card.find("h3").find("a").text.strip()
-                    gov_desc = card.find("div").find("p").text.strip()
-                    type_tag = card.select_one("label.ml-3 + span")
-                    activity_type = type_tag.text.strip() if type_tag else "N/A"
+                    page.wait_for_selector("div.tender-card", timeout=5000)
+                except:
+                    print("⚠️ No tender cards found on this page.")
+                    continue
 
-                    self.data.append({
-                        "Title": title,
-                        "Government Description": gov_desc,
-                        "Activity Type": activity_type,
-                        "Date": deadline
-                    })
-                except Exception as e:
-                    print("❌ Error parsing card:", e)
+                html = page.content()
+                soup = BeautifulSoup(html, "html.parser")
+                cards = soup.find_all("div", class_="tender-card")
 
+                for card in cards:
+                    try:
+                        deadline = card.find("div").find("span").text.strip()
+                        title = card.find("h3").find("a").text.strip()
+                        gov_desc = card.find("div").find("p").text.strip()
+                        type_tag = card.select_one("label.ml-3 + span")
+                        activity_type = type_tag.text.strip() if type_tag else "N/A"
+
+                        self.data.append({
+                            "Title": title,
+                            "Government Description": gov_desc,
+                            "Activity Type": activity_type,
+                            "Date": deadline
+                        })
+                    except Exception as e:
+                        print("❌ Error parsing card:", e)
+
+            browser.close()
         print("✅ Scraping complete.")
         return self.data
 
