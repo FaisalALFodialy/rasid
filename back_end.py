@@ -52,18 +52,24 @@ class TenderScraper:
 
     class TenderScraper:
     def scrape_tenders(self):
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.binary_location = "/usr/bin/chromium-browser"
-
-        service = Service("/usr/bin/chromedriver")  # use system driver
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-
-        driver.get("https://tenders.etimad.sa/Tender/AllTendersForVisitor")  # test load
-        print("✅ Browser loaded successfully.")
-        driver.quit()
+        from selenium.common.exceptions import WebDriverException
+         try:
+            chrome_options = Options()
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.binary_location = "/usr/bin/chromium-browser"
+    
+            service = Service("/usr/bin/chromedriver")
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+    
+            driver.get("https://google.com")
+            print("✅ Chrome started and loaded Google.")
+            driver.quit()
+        except WebDriverException as e:
+            print("❌ WebDriverException:", e)
+        except Exception as ex:
+            print("❌ General Exception:", ex)
         time.sleep(4)
 
         page_count = 0
