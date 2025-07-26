@@ -63,30 +63,27 @@ class TenderScraper:
         )
         self.data = []
 
-    def _init_driver(self):
-        """Initialize and return a Chrome WebDriver with proper configuration"""
-        options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--window-size=1920,1080')
-        
-        try:
-            # Try with Chrome first
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=options)
-            return driver
-        except Exception as chrome_error:
-            logger.warning(f"Chrome initialization failed, trying Chromium: {chrome_error}")
-            try:
-                # Fall back to Chromium
-                service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
-                driver = webdriver.Chrome(service=service, options=options)
-                return driver
-            except Exception as chromium_error:
-                logger.error(f"Chromium initialization failed: {chromium_error}")
-                raise ValueError("Failed to initialize web browser. Please ensure Chrome/Chromium is installed.")
+   def _init_driver(self):
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    
+    try:
+        # Try with webdriver_manager first
+        driver = webdriver.Chrome(
+            service=Service(ChromeDriverManager().install()),
+            options=options
+        )
+        return driver
+    except Exception as e:
+        logger.warning(f"webdriver_manager failed, trying direct path: {e}")
+        # Fallback to system chromedriver
+        driver = webdriver.Chrome(
+            service=Service('/usr/bin/chromedriver'),
+            options=options
+        )
+        return driver
 
     def scrape_tenders(self, max_pages=2):
         """Scrape tenders with proper error handling and resource management"""
