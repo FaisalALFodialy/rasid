@@ -8,7 +8,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException, WebDriverException
 from bs4 import BeautifulSoup
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -42,7 +42,6 @@ class TenderScraper:
         self.activity_id = CATEGORY_ID_MAP.get(category)
         if self.activity_id is None:
             raise ValueError(f"Invalid category: {category}")
-
         self.base_url = (
             f"https://tenders.etimad.sa/Tender/AllTendersForVisitor?"
             f"&MultipleSearch=&TenderCategory=&TenderActivityId={self.activity_id}"
@@ -50,72 +49,69 @@ class TenderScraper:
         )
         self.data = []
 
-    class TenderScraper:
-    def scrape_tenders(self):
-        from selenium.common.exceptions import WebDriverException
-         try:
+    def scrape_tenders(self, max_pages=1):  # keep it small for testing
+        try:
             chrome_options = Options()
             chrome_options.add_argument("--headless")
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.binary_location = "/usr/bin/chromium-browser"
-    
             service = Service("/usr/bin/chromedriver")
             driver = webdriver.Chrome(service=service, options=chrome_options)
-    
-            driver.get("https://google.com")
-            print("✅ Chrome started and loaded Google.")
+
+            driver.get(self.base_url + "1")
+            time.sleep(4)
+
+            page_count = 0
+            while page_count < max_pages:
+                print(f"Scraping page {page_count + 1}...")
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                cards = soup.find_all('div', class_='tender-card')
+
+                for card in cards:
+                    try:
+                        date = card.find('div').find('span') if card.find('div') else None
+                        deadline = date.text.strip() if date else "N/A"
+
+                        title_tag = card.find('h3').find('a') if card.find('h3') else None
+                        title = title_tag.text.strip() if title_tag else "N/A"
+
+                        gov_desc_tag = card.find('div').find('p') if card.find('div') else None
+                        gov_desc = gov_desc_tag.text.strip() if gov_desc_tag else "N/A"
+
+                        type_tag = card.select_one('label.ml-3 + span')
+                        activity_type = type_tag.text.strip() if type_tag else "N/A"
+
+                        self.data.append({
+                            'Title': title,
+                            'Government Description': gov_desc,
+                            'Activity Type': activity_type,
+                            'Date': deadline
+                        })
+                    except Exception as e:
+                        print(f"Error on card in page {page_count + 1}: {e}")
+
+                try:
+                    next_button = driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
+                    if "disabled" in next_button.get_attribute("class").lower():
+                        print("Next button is disabled. Reached last page.")
+                        break
+                    driver.execute_script("arguments[0].click();", next_button)
+                    time.sleep(3)
+                    page_count += 1
+                except (NoSuchElementException, ElementClickInterceptedException):
+                    print("Next button not found or clickable. Ending pagination.")
+                    break
+
             driver.quit()
+            print("Scraping complete.")
         except WebDriverException as e:
             print("❌ WebDriverException:", e)
         except Exception as ex:
             print("❌ General Exception:", ex)
-        time.sleep(4)
 
-        page_count = 0
-        while page_count < max_pages:
-            print(f"Scraping page {page_count + 1}...")
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
-            cards = soup.find_all('div', class_='tender-card')
-
-            for card in cards:
-                try:
-                    date = card.find('div').find('span') if card.find('div') else None
-                    deadline = date.text.strip() if date else "N/A"
-
-                    title_tag = card.find('h3').find('a') if card.find('h3') else None
-                    title = title_tag.text.strip() if title_tag else "N/A"
-
-                    gov_desc_tag = card.find('div').find('p') if card.find('div') else None
-                    gov_desc = gov_desc_tag.text.strip() if gov_desc_tag else "N/A"
-
-                    type_tag = card.select_one('label.ml-3 + span')
-                    activity_type = type_tag.text.strip() if type_tag else "N/A"
-
-                    self.data.append({
-                        'Title': title,
-                        'Government Description': gov_desc,
-                        'Activity Type': activity_type,
-                        'Date': deadline
-                    })
-                except Exception as e:
-                    print(f"Error on card in page {page_count + 1}: {e}")
-
-            try:
-                next_button = driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
-                if "disabled" in next_button.get_attribute("class").lower():
-                    print("Next button is disabled. Reached last page.")
-                    break
-                driver.execute_script("arguments[0].click();", next_button)
-                time.sleep(3)
-                page_count += 1
-            except (NoSuchElementException, ElementClickInterceptedException):
-                print("Next button not found or clickable. Ending pagination.")
-                break
-
-        driver.quit()
-        print("Scraping complete.")
         return self.data
+
 
 class ExcelReportGenerator:
     def __init__(self, data, filename="rasid_tenders_report.xlsx"):
@@ -127,6 +123,7 @@ class ExcelReportGenerator:
         df.to_excel(self.filename, index=False)
         print(f"Excel Report saved as {self.filename}")
         return self.filename
+
 
 class EmailSender:
     def __init__(self, sender_email, password, receiver_emails):
@@ -163,6 +160,7 @@ class EmailSender:
         except Exception as e:
             print(f"Error sending email: {e}")
         os.remove(attachment_filename)
+
 
 class RasidJob:
     def __init__(self, sender_email, password, receiver_emails, category):
