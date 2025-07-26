@@ -94,6 +94,8 @@ pyvirtualdisplay
 beautifulsoup4
 undetected-chromedriver
 pandas
+Playwright 
+Chromium 
 openpyxl
 
 
