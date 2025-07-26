@@ -40,12 +40,13 @@ CATEGORY_ID_MAP = {
 }
 
 class TenderScraper:
-    def __init__(self):
+    def __init__(self, category_id=8):
+        self.category_id = category_id
         self.base_url = "https://tenders.etimad.sa/Tender/AllTendersForVisitor"
         self.params = {
             "MultipleSearch": "",
             "TenderCategory": "",
-            "TenderActivityId": 8,
+            "TenderActivityId": self.category_id,
             "ReferenceNumber": "",
             "TenderNumber": "",
             "agency": "",
@@ -55,6 +56,7 @@ class TenderScraper:
             "PageNumber": 1
         }
         self.data = []
+
 
     def scrape_tenders(self, max_pages=3):
         headers = {
@@ -151,7 +153,7 @@ class RasidJob:
 
     def run(self):
         print("📦 Running Rasid job...")
-        scraper = TenderScraper(self.category)
+        scraper = TenderScraper(category_id=9)
         data = scraper.scrape_tenders()
         report = ExcelReportGenerator(data)
         file = report.generate_excel()
