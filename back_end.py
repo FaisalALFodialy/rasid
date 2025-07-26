@@ -40,54 +40,58 @@ CATEGORY_ID_MAP = {
 }
 
 class TenderScraper:
-    def __init__(self, category):
-        self.activity_id = CATEGORY_ID_MAP.get(category)
-        if self.activity_id is None:
-            raise ValueError(f"Invalid category: {category}")
-        self.base_url = (
-            f"https://tenders.etimad.sa/Tender/AllTendersForVisitor?"
-            f"&MultipleSearch=&TenderCategory=&TenderActivityId={self.activity_id}"
-            f"&ReferenceNumber=&TenderNumber=&agency=&ConditionaBookletRange=&PublishDateId=5"
-        )
+    def __init__(self):
+        self.base_url = "https://tenders.etimad.sa/Tender/AllTendersForVisitor"
+        self.params = {
+            "MultipleSearch": "",
+            "TenderCategory": "",
+            "TenderActivityId": 8,
+            "ReferenceNumber": "",
+            "TenderNumber": "",
+            "agency": "",
+            "ConditionaBookletRange": "",
+            "PublishDateId": 5,
+            "IsSearch": "true",
+            "PageNumber": 1
+        }
         self.data = []
 
     def scrape_tenders(self, max_pages=3):
-        session = requests.Session()
         headers = {
             "User-Agent": "Mozilla/5.0"
         }
 
         for page in range(1, max_pages + 1):
-            url = self.base_url + f"&page={page}"
-            print(f"🔍 Fetching page {page}...")
-            response = session.get(url, headers=headers)
-            soup = BeautifulSoup(response.content, 'html.parser')
-            cards = soup.find_all('div', class_='tender-card')
+            self.params["PageNumber"] = page
+            print(f"📄 Fetching page {page}...")
 
+            response = requests.get(self.base_url, params=self.params, headers=headers)
+            soup = BeautifulSoup(response.content, "html.parser")
+
+            cards = soup.find_all("div", class_="tender-card")
             if not cards:
-                print("⚠️ No tenders found on page.")
+                print("⚠️ No tenders found.")
                 break
 
             for card in cards:
                 try:
-                    deadline = card.find('div').find('span').text.strip()
-                    title = card.find('h3').find('a').text.strip()
-                    gov_desc = card.find('div').find('p').text.strip()
-                    type_tag = card.select_one('label.ml-3 + span')
+                    deadline = card.find("div").find("span").text.strip()
+                    title = card.find("h3").find("a").text.strip()
+                    gov_desc = card.find("div").find("p").text.strip()
+                    type_tag = card.select_one("label.ml-3 + span")
                     activity_type = type_tag.text.strip() if type_tag else "N/A"
 
                     self.data.append({
-                        'Title': title,
-                        'Government Description': gov_desc,
-                        'Activity Type': activity_type,
-                        'Date': deadline
+                        "Title": title,
+                        "Government Description": gov_desc,
+                        "Activity Type": activity_type,
+                        "Date": deadline
                     })
                 except Exception as e:
                     print("❌ Error parsing card:", e)
 
-        print("✅ Scraping done.")
+        print("✅ Scraping complete.")
         return self.data
-
 
 class ExcelReportGenerator:
     def __init__(self, data, filename="rasid_tenders_report.xlsx"):
