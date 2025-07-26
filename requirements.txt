@@ -92,6 +92,8 @@ selenium
 webdriver-manager
 pyvirtualdisplay
 beautifulsoup4
+undetected-chromedriver
 pandas
 openpyxl
+
 
