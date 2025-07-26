@@ -16,6 +16,8 @@ from email.mime.base import MIMEBase
 from email import encoders
 import requests
 from bs4 import BeautifulSoup
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # ✅ Category mapping
 CATEGORY_ID_MAP = {
@@ -153,7 +155,7 @@ class RasidJob:
 
     def run(self):
         print("📦 Running Rasid job...")
-        scraper = TenderScraper(category_id=9)
+        scraper = TenderScraper(category_id=CATEGORY_ID_MAP.get(self.category, 9))
         data = scraper.scrape_tenders()
         report = ExcelReportGenerator(data)
         file = report.generate_excel()
