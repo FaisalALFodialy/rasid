@@ -6,27 +6,17 @@ import datetime
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-import os
 
-from webdriver_manager.chrome import ChromeDriverManager
-
-options = Options()
-options.add_argument('--headless')
-options.add_argument('--no-sandbox')
-options.add_argument('--disable-dev-shm-usage')
-options.binary_location = "/usr/bin/chrome"
-service = Service("/usr/local/bin/chromedriver")  # ✅ تم التأكد من المسار الصحيح
-
-# Mapping from category name to TenderActivityId
+# ✅ Category mapping
 CATEGORY_ID_MAP = {
     "Trade": 1,
     "Contracting": 2,
@@ -62,16 +52,13 @@ class TenderScraper:
         self.data = []
 
     def scrape_tenders(self, max_pages=40):
-        from selenium.webdriver.common.by import By
-        from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
-
         options = Options()
-        options.binary_location = "/usr/bin/chromium-browser"
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
 
-        service = Service("/usr/bin/chromedriver")
+        # ✅ Automatically downloads and manages the ChromeDriver
+        service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
         driver.get(self.base_url + "1")
         time.sleep(4)
@@ -131,7 +118,6 @@ class ExcelReportGenerator:
         df.to_excel(self.filename, index=False)
         print(f"Excel Report saved as {self.filename}")
         return self.filename
-
 
 class EmailSender:
     def __init__(self, sender_email, password, receiver_emails):
