@@ -91,3 +91,7 @@ streamlit
 selenium
 webdriver-manager
 pyvirtualdisplay
+beautifulsoup4
+pandas
+openpyxl
+
