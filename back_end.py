@@ -58,52 +58,44 @@ class TenderScraper:
             "PageNumber": 1
         }
         self.data = []
-
+        
     def scrape_tenders(self, max_pages=3):
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context()
-            page = context.new_page()
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
 
-            for page_number in range(1, max_pages + 1):
-                print(f"📄 Scraping page {page_number}...")
-                self.params["PageNumber"] = page_number
+        for page in range(1, max_pages + 1):
+            self.params["PageNumber"] = page
+            print(f"📄 Fetching page {page}...")
 
-                # Build full URL with query string
-                url = self.base_url + "?" + "&".join([f"{k}={v}" for k, v in self.params.items()])
-                page.goto(url, wait_until="networkidle")
+            response = requests.get(self.base_url, params=self.params, headers=headers)
+            soup = BeautifulSoup(response.content, "html.parser")
 
+            cards = soup.find_all("div", class_="tender-card")
+            if not cards:
+                print("⚠️ No tenders found.")
+                break
+
+            for card in cards:
                 try:
-                    page.wait_for_selector("div.tender-card", timeout=5000)
-                except:
-                    print("⚠️ No tender cards found on this page.")
-                    continue
+                    deadline = card.find("div").find("span").text.strip()
+                    title = card.find("h3").find("a").text.strip()
+                    gov_desc = card.find("div").find("p").text.strip()
+                    type_tag = card.select_one("label.ml-3 + span")
+                    activity_type = type_tag.text.strip() if type_tag else "N/A"
 
-                html = page.content()
-                soup = BeautifulSoup(html, "html.parser")
-                cards = soup.find_all("div", class_="tender-card")
+                    self.data.append({
+                        "Title": title,
+                        "Government Description": gov_desc,
+                        "Activity Type": activity_type,
+                        "Date": deadline
+                    })
+                except Exception as e:
+                    print("❌ Error parsing card:", e)
 
-                for card in cards:
-                    try:
-                        deadline = card.find("div").find("span").text.strip()
-                        title = card.find("h3").find("a").text.strip()
-                        gov_desc = card.find("div").find("p").text.strip()
-                        type_tag = card.select_one("label.ml-3 + span")
-                        activity_type = type_tag.text.strip() if type_tag else "N/A"
-
-                        self.data.append({
-                            "Title": title,
-                            "Government Description": gov_desc,
-                            "Activity Type": activity_type,
-                            "Date": deadline
-                        })
-                    except Exception as e:
-                        print("❌ Error parsing card:", e)
-
-            browser.close()
         print("✅ Scraping complete.")
         return self.data
-
+        
 class ExcelReportGenerator:
     def __init__(self, data, filename="rasid_tenders_report.xlsx"):
         self.data = data
