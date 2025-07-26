@@ -49,41 +49,40 @@ class TenderScraper:
         )
         self.data = []
 
-    def scrape_tenders(self, max_pages=5):  # keep it small for testing
+    def scrape_tenders(self, max_pages=1):  # Keep 1 page for test
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.binary_location = "/usr/bin/chromium-browser"
+    
         service = Service("/usr/bin/chromedriver")
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-
-        driver.get(self.base_url + "1")
-        time.sleep(4)
-            
-        from selenium.webdriver.common.by import By
-        from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
-
+        try:
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+        except Exception as e:
+            print("❌ Failed to start ChromeDriver:", e)
+            raise
+    
+        driver.get(self.base_url)
+    
+        time.sleep(5)  # Wait for JS to render
+    
         page_count = 0
         while page_count < max_pages:
             print(f"Scraping page {page_count + 1}...")
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
             cards = soup.find_all('div', class_='tender-card')
-
+    
+            if not cards:
+                print("⚠️ No tender cards found.")
             for card in cards:
                 try:
-                    date = card.find('div').find('span') if card.find('div') else None
-                    deadline = date.text.strip() if date else "N/A"
-
-                    title_tag = card.find('h3').find('a') if card.find('h3') else None
-                    title = title_tag.text.strip() if title_tag else "N/A"
-
-                    gov_desc_tag = card.find('div').find('p') if card.find('div') else None
-                    gov_desc = gov_desc_tag.text.strip() if gov_desc_tag else "N/A"
-
+                    deadline = card.find('div').find('span').text.strip()
+                    title = card.find('h3').find('a').text.strip()
+                    gov_desc = card.find('div').find('p').text.strip()
                     type_tag = card.select_one('label.ml-3 + span')
                     activity_type = type_tag.text.strip() if type_tag else "N/A"
-
+    
                     self.data.append({
                         'Title': title,
                         'Government Description': gov_desc,
@@ -91,23 +90,22 @@ class TenderScraper:
                         'Date': deadline
                     })
                 except Exception as e:
-                    print(f"Error on card in page {page_count + 1}: {e}")
-
+                    print("❌ Error parsing card:", e)
+    
             try:
-                next_button = self.driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
+                next_button = driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
                 if "disabled" in next_button.get_attribute("class").lower():
-                    print("Next button is disabled. Reached last page.")
                     break
-                self.driver.execute_script("arguments[0].click();", next_button)
+                driver.execute_script("arguments[0].click();", next_button)
                 time.sleep(3)
                 page_count += 1
-            except (NoSuchElementException, ElementClickInterceptedException) as e:
-                print("Next button not found or clickable. Ending pagination.")
+            except Exception as e:
+                print("⚠️ No next button or not clickable:", e)
                 break
+    
+        driver.quit()
+        return self.data
 
-            self.driver.quit()
-            print("Scraping complete.")
-            return self.data
 
 
 class ExcelReportGenerator:
