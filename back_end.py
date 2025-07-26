@@ -14,8 +14,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 # ✅ Category mapping
 CATEGORY_ID_MAP = {
@@ -51,61 +49,66 @@ class TenderScraper:
         )
         self.data = []
 
-    def scrape_tenders(self, max_pages=5):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.binary_location = "/usr/bin/chromium-browser"
+    def scrape_tenders(self, max_pages=5):  # keep it small for testing
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.binary_location = "/usr/bin/chromium-browser"
+        service = Service("/usr/bin/chromedriver")
+        driver = webdriver.Chrome(service=service, options=chrome_options)
 
-    service = Service("/usr/bin/chromedriver")
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver.get(self.base_url + "1")
+        time.sleep(4)
+            
+        from selenium.webdriver.common.by import By
+        from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 
-    driver.get(self.base_url)
-    
-    try:
-        # ✅ Wait up to 15 seconds for any tender card to appear
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "tender-card"))
-        )
-    except Exception as e:
-        print("⚠️ Timeout: Tender cards not found on page.")
-        driver.quit()
-        return []
+        page_count = 0
+        while page_count < max_pages:
+            print(f"Scraping page {page_count + 1}...")
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            cards = soup.find_all('div', class_='tender-card')
 
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
-    cards = soup.find_all('div', class_='tender-card')
+            for card in cards:
+                try:
+                    date = card.find('div').find('span') if card.find('div') else None
+                    deadline = date.text.strip() if date else "N/A"
 
-    if not cards:
-        print("⚠️ No tender cards found in HTML.")
-    else:
-        print(f"✅ Found {len(cards)} cards")
+                    title_tag = card.find('h3').find('a') if card.find('h3') else None
+                    title = title_tag.text.strip() if title_tag else "N/A"
 
-    for card in cards:
-        try:
-            date = card.find('div').find('span') if card.find('div') else None
-            deadline = date.text.strip() if date else "N/A"
+                    gov_desc_tag = card.find('div').find('p') if card.find('div') else None
+                    gov_desc = gov_desc_tag.text.strip() if gov_desc_tag else "N/A"
 
-            title_tag = card.find('h3').find('a') if card.find('h3') else None
-            title = title_tag.text.strip() if title_tag else "N/A"
+                    type_tag = card.select_one('label.ml-3 + span')
+                    activity_type = type_tag.text.strip() if type_tag else "N/A"
 
-            gov_desc_tag = card.find('div').find('p') if card.find('div') else None
-            gov_desc = gov_desc_tag.text.strip() if gov_desc_tag else "N/A"
+                    self.data.append({
+                        'Title': title,
+                        'Government Description': gov_desc,
+                        'Activity Type': activity_type,
+                        'Date': deadline
+                    })
+                except Exception as e:
+                    print(f"Error on card in page {page_count + 1}: {e}")
 
-            type_tag = card.select_one('label.ml-3 + span')
-            activity_type = type_tag.text.strip() if type_tag else "N/A"
+            try:
+                next_button = self.driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
+                if "disabled" in next_button.get_attribute("class").lower():
+                    print("Next button is disabled. Reached last page.")
+                    break
+                self.driver.execute_script("arguments[0].click();", next_button)
+                time.sleep(3)
+                page_count += 1
+            except (NoSuchElementException, ElementClickInterceptedException) as e:
+                print("Next button not found or clickable. Ending pagination.")
+                break
 
-            self.data.append({
-                'Title': title,
-                'Government Description': gov_desc,
-                'Activity Type': activity_type,
-                'Date': deadline
-            })
-        except Exception as e:
-            print("❌ Error parsing card:", e)
+            self.driver.quit()
+            print("Scraping complete.")
+            return self.data
 
-    driver.quit()
-    return self.data
 
 class ExcelReportGenerator:
     def __init__(self, data, filename="rasid_tenders_report.xlsx"):
