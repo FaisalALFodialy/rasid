@@ -1,3 +1,4 @@
+# back_end.py - Corrected imports
 import time
 import os
 import smtplib
@@ -7,7 +8,7 @@ import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.utils import ChromeType
+from webdriver_manager.chrome import ChromeType  # Correct import path
 from bs4 import BeautifulSoup
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -15,9 +16,11 @@ from email.mime.base import MIMEBase
 from email import encoders
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import (NoSuchElementException, 
-                                      ElementClickInterceptedException,
-                                      WebDriverException)
+from selenium.common.exceptions import (
+    NoSuchElementException, 
+    ElementClickInterceptedException,
+    WebDriverException
+)
 import logging
 import sys
 
