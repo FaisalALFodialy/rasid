@@ -53,17 +53,17 @@ class TenderScraper:
 
     def scrape_tenders(self, max_pages=40):
         from selenium.webdriver.common.by import By
-        from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
-
+    
         options = Options()
         options.add_argument("--headless")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
-
-        # ✅ Automatically fetch compatible driver version
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    
+        options.binary_location = "/usr/bin/chromium-browser"
+        service = Service("/usr/bin/chromedriver")  # use system installed version
+    
+        driver = webdriver.Chrome(service=service, options=options)
         driver.get(self.base_url + "1")
-        service = Service(ChromeDriverManager().install())
         time.sleep(4)
 
         page_count = 0
