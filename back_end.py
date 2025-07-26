@@ -7,6 +7,7 @@ import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.utils import ChromeType
 from bs4 import BeautifulSoup
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -18,6 +19,7 @@ from selenium.common.exceptions import (NoSuchElementException,
                                       ElementClickInterceptedException,
                                       WebDriverException)
 import logging
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -53,8 +55,8 @@ class TenderScraper:
 
         self.base_url = (
             f"https://tenders.etimad.sa/Tender/AllTendersForVisitor?"
-            f"&MultipleSearch=&TenderCategory=&TenderActivityId={self.activity_id}"
-            f"&ReferenceNumber=&TenderNumber=&agency=&ConditionaBookletRange=&PublishDateId=5"
+            f"TenderActivityId={self.activity_id}"
+            f"&PublishDateId=5&PageSize=60"
         )
         self.data = []
 
@@ -68,41 +70,49 @@ class TenderScraper:
         options.add_argument('--window-size=1920,1080')
         
         try:
-            # Use webdriver_manager to handle driver installation
+            # Try with Chrome first
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=options)
             return driver
-        except Exception as e:
-            logger.error(f"Failed to initialize ChromeDriver: {str(e)}")
-            raise ValueError("Failed to initialize web browser. Please try again later.")
+        except Exception as chrome_error:
+            logger.warning(f"Chrome initialization failed, trying Chromium: {chrome_error}")
+            try:
+                # Fall back to Chromium
+                service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+                driver = webdriver.Chrome(service=service, options=options)
+                return driver
+            except Exception as chromium_error:
+                logger.error(f"Chromium initialization failed: {chromium_error}")
+                raise ValueError("Failed to initialize web browser. Please ensure Chrome/Chromium is installed.")
 
     def scrape_tenders(self, max_pages=2):
         """Scrape tenders with proper error handling and resource management"""
         driver = None
         try:
             driver = self._init_driver()
-            driver.get(self.base_url + "1")
-            time.sleep(4)  # Allow page to load
+            driver.get(self.base_url + "&PageNumber=1")
+            time.sleep(5)  # Allow more time for page to load
 
             page_count = 0
             while page_count < max_pages:
                 logger.info(f"Scraping page {page_count + 1}...")
+                
+                # Wait for cards to load
+                time.sleep(3)
                 soup = BeautifulSoup(driver.page_source, 'html.parser')
                 cards = soup.find_all('div', class_='tender-card')
 
+                if not cards:
+                    logger.warning("No tender cards found on page.")
+                    break
+
                 for card in cards:
                     try:
-                        date = card.find('div').find('span') if card.find('div') else None
-                        deadline = date.text.strip() if date else "N/A"
-
-                        title_tag = card.find('h3').find('a') if card.find('h3') else None
-                        title = title_tag.text.strip() if title_tag else "N/A"
-
-                        gov_desc_tag = card.find('div').find('p') if card.find('div') else None
-                        gov_desc = gov_desc_tag.text.strip() if gov_desc_tag else "N/A"
-
-                        type_tag = card.select_one('label.ml-3 + span')
-                        activity_type = type_tag.text.strip() if type_tag else "N/A"
+                        # Extract tender data with more robust selectors
+                        title = card.find('h3').get_text(strip=True) if card.find('h3') else "N/A"
+                        deadline = card.find('span', class_='text-secondary').get_text(strip=True) if card.find('span', class_='text-secondary') else "N/A"
+                        gov_desc = card.find('p').get_text(strip=True) if card.find('p') else "N/A"
+                        activity_type = card.find('span', class_='badge').get_text(strip=True) if card.find('span', class_='badge') else "N/A"
 
                         self.data.append({
                             'Title': title,
@@ -115,11 +125,9 @@ class TenderScraper:
                         logger.warning(f"Error processing card: {str(e)}")
                         continue
 
+                # Pagination handling
                 try:
-                    next_button = driver.find_element(By.CSS_SELECTOR, "button.page-link[aria-label='Next']")
-                    if "disabled" in next_button.get_attribute("class").lower():
-                        logger.info("Reached last page of results.")
-                        break
+                    next_button = driver.find_element(By.CSS_SELECTOR, "button[aria-label='Next']:not([disabled])")
                     driver.execute_script("arguments[0].click();", next_button)
                     time.sleep(3)  # Wait for next page to load
                     page_count += 1
@@ -135,9 +143,9 @@ class TenderScraper:
 
         except WebDriverException as e:
             logger.error(f"Browser error during scraping: {str(e)}")
-            raise ValueError("Error accessing tender website. Please try again later.")
+            raise ValueError("Error accessing tender website. The site might be temporarily unavailable.")
         except Exception as e:
-            logger.error(f"Unexpected error during scraping: {str(e)}")
+            logger.error(f"Unexpected error during scraping: {str(e)}", exc_info=True)
             raise ValueError("An unexpected error occurred during scraping.")
         finally:
             if driver:
@@ -151,11 +159,15 @@ class ExcelReportGenerator:
     def generate_excel(self):
         try:
             df = pd.DataFrame(self.data)
-            df.to_excel(self.filename, index=False)
+            
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(self.filename), exist_ok=True)
+            
+            df.to_excel(self.filename, index=False, engine='openpyxl')
             logger.info(f"Excel report generated: {self.filename}")
             return self.filename
         except Exception as e:
-            logger.error(f"Error generating Excel report: {str(e)}")
+            logger.error(f"Error generating Excel report: {str(e)}", exc_info=True)
             raise ValueError("Failed to generate report file.")
 
 class EmailSender:
@@ -168,7 +180,7 @@ class EmailSender:
 
     def send_email(self, attachment_filename):
         if not os.path.exists(attachment_filename):
-            raise ValueError("Report file not found for email attachment.")
+            raise ValueError(f"Report file not found at: {attachment_filename}")
 
         msg = MIMEMultipart()
         msg["From"] = self.sender_email
@@ -203,18 +215,19 @@ Rasid Team
                 server.login(self.sender_email, self.password)
                 server.sendmail(self.sender_email, self.receiver_emails, msg.as_string())
             
-            logger.info("Email sent successfully!")
+            logger.info(f"Email sent successfully to {self.receiver_emails}")
+            return True
         except smtplib.SMTPException as e:
-            logger.error(f"Email sending failed: {str(e)}")
-            raise ValueError("Failed to send email. Please check your email settings.")
+            logger.error(f"Email sending failed: {str(e)}", exc_info=True)
+            raise ValueError("Failed to send email. Please check your email credentials and settings.")
         except Exception as e:
-            logger.error(f"Unexpected error sending email: {str(e)}")
+            logger.error(f"Unexpected error sending email: {str(e)}", exc_info=True)
             raise ValueError("An unexpected error occurred while sending email.")
         finally:
             try:
                 os.remove(attachment_filename)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.warning(f"Could not delete temporary file: {str(e)}")
 
 class RasidJob:
     def __init__(self, sender_email, password, receiver_emails, category):
@@ -251,5 +264,5 @@ class RasidJob:
             logger.error(f"Validation error in Rasid job: {str(ve)}")
             raise ve
         except Exception as e:
-            logger.error(f"Unexpected error in Rasid job: {str(e)}")
-            raise ValueError("An unexpected error occurred while processing your request.")
+            logger.error(f"Unexpected error in Rasid job: {str(e)}", exc_info=True)
+            raise ValueError("An unexpected error occurred while processing your request. Please try again later.")
