@@ -4,12 +4,9 @@ import smtplib
 import ssl
 import datetime
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
-from webdriver_manager.chrome import ChromeDriverManager
+import undetected_chromedriver as uc
 from bs4 import BeautifulSoup
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -53,9 +50,12 @@ class TenderScraper:
 
     def scrape_tenders(self, max_pages=40):
         options = Options()
+        options = uc.ChromeOptions()
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
+        
+        driver = uc.Chrome(options=options)
 
         # ✅ Automatically downloads and manages the ChromeDriver
         service = Service(ChromeDriverManager().install())
