@@ -190,7 +190,6 @@ elif menu == "Schedule Opportunities":
                     frequency="Weekly"
                 )
                 job.run()
-                st.success("Scraping done and email sent!")
             except ValueError as ve:
                 st.error(str(ve))
             except Exception as e:
