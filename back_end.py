@@ -160,12 +160,14 @@ class EmailSender:
 
 
 class RasidJob:
-    def __init__(self, sender_email, password, client_email, category, time_of_day, frequency):
+    def __init__(self, sender_email, password, company_name, client_email, category,start_date, time_of_day, frequency):
+        self.company_name= company_name
         self.sender_email = sender_email
         self.password = password
         self.client_email = client_email
         self.category = category
-        self.time_of_day = time_of_day
+        self.start_date = start_date
+        self.time_of_day= time_of_day
         self.frequency = frequency
         self.admin_email = "faisal8883003@hotmail.com"  # ✅ Explicit admin email
 
@@ -185,9 +187,10 @@ class RasidJob:
         msg["Subject"] = f"📨 Rasid Client Request - {datetime.date.today()}"
 
         body = (
-            f"📬 New Rasid Client Request:\n\n"
+            f"📬 New Rasid Client Request:{self.company_name}\n\n"
             f"👤 Client Email: {self.client_email}\n"
             f"🏢 Category: {self.category}\n"
+            f"🕒 start date day: {self.start_date}
             f"🕒 Preferred Time: {self.time_of_day}\n"
             f"🔁 Frequency: {self.frequency}\n\n"
             f"📎 Please find the attached tender report.\n\n"
