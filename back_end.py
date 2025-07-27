@@ -167,18 +167,52 @@ class RasidJob:
         self.category = category
         self.time_of_day = time_of_day
         self.frequency = frequency
+        self.admin_email = "faisal8883003@hotmail.com"  # ✅ Explicit admin email
 
     def run(self):
-        print("🚀 Running RasidJob...")
+        print("📦 Running Rasid job...")
+
+        # Scrape data
         scraper = TenderScraper(category_id=CATEGORY_ID_MAP.get(self.category, 9))
         data = scraper.scrape_tenders()
         report = ExcelReportGenerator(data)
-        filename = report.generate_excel()
-        sender = EmailSender(self.sender_email, self.password)
-        sender.send_email(
-            client_email=self.client_email,
-            category=self.category,
-            time_of_day=self.time_of_day,
-            frequency=self.frequency,
-            attachment_filename=filename
+        file = report.generate_excel()
+
+        # Compose email
+        msg = MIMEMultipart()
+        msg["From"] = self.sender_email
+        msg["To"] = self.admin_email
+        msg["Subject"] = f"📨 Rasid Client Request - {datetime.date.today()}"
+
+        body = (
+            f"📬 New Rasid Client Request:\n\n"
+            f"👤 Client Email: {self.client_email}\n"
+            f"🏢 Category: {self.category}\n"
+            f"🕒 Preferred Time: {self.time_of_day}\n"
+            f"🔁 Frequency: {self.frequency}\n\n"
+            f"📎 Please find the attached tender report.\n\n"
+            f"Regards,\nRasid System"
         )
+        msg.attach(MIMEText(body, "plain"))
+
+        # Attach report
+        with open(file, "rb") as attachment:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(attachment.read())
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", f"attachment; filename={file}")
+            msg.attach(part)
+
+        # Send email
+        try:
+            context = ssl.create_default_context()
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls(context=context)
+            server.login(self.sender_email, self.password)
+            server.sendmail(self.sender_email, self.admin_email, msg.as_string())
+            server.quit()
+            print("✅ Email sent to admin successfully!")
+        except Exception as e:
+            print(f"❌ Error sending email: {e}")
+        finally:
+            os.remove(file)
