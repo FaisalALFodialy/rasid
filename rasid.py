@@ -184,7 +184,7 @@ elif menu == "Schedule Opportunities":
                 job = RasidJob(
                     sender_email="rasid.projects.news@gmail.com",
                     password = "sveiheahhbzidbnf",
-                    client_email="client@example.com",  # ✅ CORRECT
+                    client_email=session_email,  # ✅ CORRECT
                     category="Education and Training",
                     time_of_day="10:00 AM",
                     frequency="Weekly"
