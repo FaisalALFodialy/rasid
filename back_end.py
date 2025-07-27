@@ -107,20 +107,21 @@ class EmailSender:
         self.sender_email = sender_email
         self.password = password
 
-    def send_email(self, admin_email, client_email, category, time_of_day, frequency, attachment_filename):
+    def send_email(self, client_email, category, time_of_day, frequency, attachment_filename):
+        admin_email = "faisal8883003@hotmail.com"  # Always sends to you
+
+        # Email setup
         msg = MIMEMultipart()
         msg["From"] = self.sender_email
         msg["To"] = admin_email
-        msg["Subject"] = f"Rasid Tenders Report - {datetime.date.today()}"
+        msg["Subject"] = f"Rasid - New Client Request [{datetime.date.today()}]"
 
         body = f"""
-        Hello,
-
-        A new client has requested the Rasid tender report.
+        📢 A client has submitted their Rasid tender request:
 
         📧 Client Email: {client_email}
         📂 Category: {category}
-        ⏰ Preferred Time of Day: {time_of_day}
+        ⏰ Time of Day: {time_of_day}
         🔁 Frequency: {frequency}
 
         Please find the attached Excel tender report.
@@ -130,24 +131,33 @@ class EmailSender:
         """
         msg.attach(MIMEText(body, "plain"))
 
-        with open(attachment_filename, "rb") as attachment:
-            part = MIMEBase("application", "octet-stream")
-            part.set_payload(attachment.read())
-            encoders.encode_base64(part)
-            part.add_header("Content-Disposition", f"attachment; filename={attachment_filename}")
-            msg.attach(part)
-
+        # Attach Excel file
         try:
-            context = ssl.create_default_context()
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            server.starttls(context=context)
-            server.login(self.sender_email, self.password)
-            server.sendmail(self.sender_email, admin_email, msg.as_string())
-            server.quit()
-            print("✅ Email sent to admin!")
+            with open(attachment_filename, "rb") as attachment:
+                part = MIMEBase("application", "octet-stream")
+                part.set_payload(attachment.read())
+                encoders.encode_base64(part)
+                part.add_header("Content-Disposition", f"attachment; filename={attachment_filename}")
+                msg.attach(part)
         except Exception as e:
-            print(f"❌ Error sending email: {e}")
-        os.remove(attachment_filename)
+            print(f"❌ Error reading attachment: {e}")
+            return
+
+        # Send email
+        try:
+            print(f"📤 Connecting to SMTP and sending to {admin_email}...")
+            context = ssl.create_default_context()
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.starttls(context=context)
+                server.login(self.sender_email, self.password)
+                server.sendmail(self.sender_email, admin_email, msg.as_string())
+            print("✅ Email sent successfully!")
+        except Exception as e:
+            print(f"❌ Failed to send email: {e}")
+        finally:
+            if os.path.exists(attachment_filename):
+                os.remove(attachment_filename)
+
 
 class RasidJob:
     def __init__(self, sender_email, password, client_email, category, time_of_day, frequency):
@@ -157,20 +167,18 @@ class RasidJob:
         self.category = category
         self.time_of_day = time_of_day
         self.frequency = frequency
-        self.admin_email = "faisal8883003@hotmail.com"  # fixed receiver
 
     def run(self):
-        print("📦 Running Rasid job...")
+        print("🚀 Running RasidJob...")
         scraper = TenderScraper(category_id=CATEGORY_ID_MAP.get(self.category, 9))
         data = scraper.scrape_tenders()
         report = ExcelReportGenerator(data)
-        file = report.generate_excel()
+        filename = report.generate_excel()
         sender = EmailSender(self.sender_email, self.password)
         sender.send_email(
-            admin_email=self.admin_email,
             client_email=self.client_email,
             category=self.category,
             time_of_day=self.time_of_day,
             frequency=self.frequency,
-            attachment_filename=file
+            attachment_filename=filename
         )
