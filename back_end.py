@@ -190,7 +190,7 @@ class RasidJob:
             f"📬 New Rasid Client Request:{self.company_name}\n\n"
             f"👤 Client Email: {self.client_email}\n"
             f"🏢 Category: {self.category}\n"
-            f"🕒 start date day: {self.start_date}
+            f"🕒 start date: {self.start_date}\n"
             f"🕒 Preferred Time: {self.time_of_day}\n"
             f"🔁 Frequency: {self.frequency}\n\n"
             f"📎 Please find the attached tender report.\n\n"
