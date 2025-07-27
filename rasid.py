@@ -183,7 +183,7 @@ elif menu == "Schedule Opportunities":
             try:
                 job = RasidJob(
                     sender_email="rasid.projects.news@gmail.com",
-                    password = "sveiheahhbzidbnf"
+                    password = "sveiheahhbzidbnf",
                     client_email="client@example.com",  # ✅ CORRECT
                     category="Education and Training",
                     time_of_day="10:00 AM",
