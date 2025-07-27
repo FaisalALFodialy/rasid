@@ -129,11 +129,13 @@ Rasid System Bot
 
 
 class RasidJob:
-    def __init__(self, sender_email, password, client_email, category):
+    def __init__(self, sender_email, password, client_email, category, time_of_day, frequency):
         self.sender_email = sender_email
         self.password = password
         self.client_email = client_email
         self.category = category
+        self.time_of_day = time_of_day
+        self.frequency = frequency
 
     def run(self):
         print("🚀 Running RasidJob...")
@@ -143,4 +145,5 @@ class RasidJob:
         report = ExcelReportGenerator(data)
         file = report.generate_excel()
         mailer = EmailSender(self.sender_email, self.password)
-        mailer.send_to_admin(file, self.client_email, self.category)
+        mailer.send_to_admin(file, self.client_email, self.category, self.time_of_day, self.frequency)
+
