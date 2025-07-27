@@ -11,15 +11,23 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-# Category mapping
 CATEGORY_ID_MAP = {
-    "Trade": 1, "Contracting": 2, "Operation, maintenance, and cleaning of facilities": 3,
-    "Real estate and land": 4, "Industry, mining, and recycling": 5, "Gas, water, and energy": 6,
-    "Mines, petroleum, and quarries": 7, "Media, publishing, and distribution": 8,
-    "Communications and Information Technology": 9, "Agriculture and Fishing": 10,
-    "Healthcare and Rehabilitation": 11, "Education and Training": 12,
-    "Employment and Recruitment": 13, "Security and Safety": 14,
-    "Transportation, Mailing and Storage": 15, "Consulting Professions": 16,
+    "Trade": 1,
+    "Contracting": 2,
+    "Operation, maintenance, and cleaning of facilities": 3,
+    "Real estate and land": 4,
+    "Industry, mining, and recycling": 5,
+    "Gas, water, and energy": 6,
+    "Mines, petroleum, and quarries": 7,
+    "Media, publishing, and distribution": 8,
+    "Communications and Information Technology": 9,
+    "Agriculture and Fishing": 10,
+    "Healthcare and Rehabilitation": 11,
+    "Education and Training": 12,
+    "Employment and Recruitment": 13,
+    "Security and Safety": 14,
+    "Transportation, Mailing and Storage": 15,
+    "Consulting Professions": 16,
     "Tourism, Restaurants, Hotels and Exhibition Organization": 17,
     "Finance, Financing and Insurance": 18
 }
@@ -29,7 +37,13 @@ class TenderScraper:
         self.category_id = category_id
         self.base_url = "https://tenders.etimad.sa/Tender/AllTendersForVisitor"
         self.params = {
+            "MultipleSearch": "",
+            "TenderCategory": "",
             "TenderActivityId": self.category_id,
+            "ReferenceNumber": "",
+            "TenderNumber": "",
+            "agency": "",
+            "ConditionaBookletRange": "",
             "PublishDateId": 5,
             "IsSearch": "true",
             "PageNumber": 1
@@ -37,16 +51,22 @@ class TenderScraper:
         self.data = []
 
     def scrape_tenders(self, max_pages=3):
-        headers = {"User-Agent": "Mozilla/5.0"}
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
         for page in range(1, max_pages + 1):
             self.params["PageNumber"] = page
             print(f"📄 Fetching page {page}...")
+
             response = requests.get(self.base_url, params=self.params, headers=headers)
             soup = BeautifulSoup(response.content, "html.parser")
+
             cards = soup.find_all("div", class_="tender-card")
             if not cards:
                 print("⚠️ No tenders found.")
                 break
+
             for card in cards:
                 try:
                     deadline = card.find("div").find("span").text.strip()
@@ -54,6 +74,7 @@ class TenderScraper:
                     gov_desc = card.find("div").find("p").text.strip()
                     type_tag = card.select_one("label.ml-3 + span")
                     activity_type = type_tag.text.strip() if type_tag else "N/A"
+
                     self.data.append({
                         "Title": title,
                         "Government Description": gov_desc,
@@ -62,6 +83,7 @@ class TenderScraper:
                     })
                 except Exception as e:
                     print("❌ Error parsing card:", e)
+
         print("✅ Scraping complete.")
         return self.data
 
@@ -74,7 +96,7 @@ class ExcelReportGenerator:
     def generate_excel(self):
         df = pd.DataFrame(self.data)
         df.to_excel(self.filename, index=False)
-        print(f"📁 Excel saved as {self.filename}")
+        print(f"Excel Report saved as {self.filename}")
         return self.filename
 
 
@@ -85,34 +107,30 @@ class EmailSender:
         self.sender_email = sender_email
         self.password = password
 
-     def send_to_admin(self, report_file, client_email, category, time_of_day, frequency):
+    def send_to_admin(self, attachment_filename, client_email, category, time_of_day, frequency):
         msg = MIMEMultipart()
         msg["From"] = self.sender_email
         msg["To"] = "faisal8883003@hotmail.com"
-        msg["Subject"] = f"📊 Rasid Report Request - {datetime.date.today()}"
+        msg["Subject"] = f"Rasid Tenders Request - {datetime.date.today()}"
 
         body = f"""
-Hello Faisal,
-
-A new client has requested Rasid tender reports.
+📥 New Rasid Client Request:
 
 📧 Client Email: {client_email}
 📂 Category: {category}
 🕒 Preferred Time: {time_of_day}
-📆 Frequency: {frequency}
+🔁 Frequency: {frequency}
 
-The attached file contains the current tenders.
-
-Regards,  
-Rasid System Bot
+The latest tender report is attached.
 """
-        msg.attach(MIMEText(body, "plain"))
 
-        with open(report_file, "rb") as attachment:
+        msg.attach(MIMEText(body.strip(), "plain"))
+
+        with open(attachment_filename, "rb") as attachment:
             part = MIMEBase("application", "octet-stream")
             part.set_payload(attachment.read())
             encoders.encode_base64(part)
-            part.add_header("Content-Disposition", f"attachment; filename={report_file}")
+            part.add_header("Content-Disposition", f"attachment; filename={attachment_filename}")
             msg.attach(part)
 
         try:
@@ -122,10 +140,10 @@ Rasid System Bot
             server.login(self.sender_email, self.password)
             server.sendmail(self.sender_email, ["faisal8883003@hotmail.com"], msg.as_string())
             server.quit()
-            print("📧 Email sent to admin!")
+            print("✅ Email sent to admin.")
         except Exception as e:
-            print(f"❌ Failed to send email: {e}")
-        os.remove(report_file)
+            print(f"❌ Email sending error: {e}")
+        os.remove(attachment_filename)
 
 
 class RasidJob:
@@ -138,12 +156,11 @@ class RasidJob:
         self.frequency = frequency
 
     def run(self):
-        print("🚀 Running RasidJob...")
+        print("🚀 Running Rasid Job")
         category_id = CATEGORY_ID_MAP.get(self.category, 9)
         scraper = TenderScraper(category_id=category_id)
         data = scraper.scrape_tenders()
         report = ExcelReportGenerator(data)
-        file = report.generate_excel()
-        mailer = EmailSender(self.sender_email, self.password)
-        mailer.send_to_admin(file, self.client_email, self.category, self.time_of_day, self.frequency)
-
+        filename = report.generate_excel()
+        sender = EmailSender(self.sender_email, self.password)
+        sender.send_to_admin(filename, self.client_email, self.category, self.time_of_day, self.frequency)
