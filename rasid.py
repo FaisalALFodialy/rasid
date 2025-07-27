@@ -184,10 +184,12 @@ elif menu == "Schedule Opportunities":
                 job = RasidJob(
                     sender_email="rasid.projects.news@gmail.com",
                     password = "sveiheahhbzidbnf",
+                    company_name=company_info['company_name'],
                     client_email=session_email,  # ✅ CORRECT
-                    category="Education and Training",
-                    time_of_day="10:00 AM",
-                    frequency="Weekly"
+                    category=category,
+                    start_date: str(start_date),
+                    time_of_day=start_time,
+                    frequency=frequency
                 )
                 job.run()
             except ValueError as ve:
