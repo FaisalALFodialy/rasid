@@ -117,15 +117,15 @@ if menu == "Register":
     category = st.selectbox("Company Category", CATEGORIES)
 
     if st.button("Register"):
-        email = email.strip()
         company_name = company_name.strip()
-
-        if not company_name.strip() or not email.strip():
-            st.error("Please fill in all fields.")
+        email = email.strip()
+    
+        if len(company_name) == 0 or len(email) == 0 or category not in CATEGORIES:
+            st.error("❌ Please fill in all fields correctly.")
         elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            st.error("Please enter a valid email address.")
+            st.error("❌ Please enter a valid email address.")
         elif email in user_data:
-            st.error("This email is already registered.")
+            st.error("⚠️ This email is already registered.")
         else:
             user_data[email] = {
                 "company_name": company_name,
@@ -134,7 +134,7 @@ if menu == "Register":
             }
             save_or_update_user(email, company_name, category)
             st.success("✅ Company registered successfully! You can now login.")
-
+    
 
 
 elif menu == "Login":
