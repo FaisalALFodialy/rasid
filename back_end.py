@@ -107,24 +107,28 @@ class EmailSender:
         self.sender_email = sender_email
         self.password = password
 
-    def send_to_admin(self, attachment_filename, client_email, category, time_of_day, frequency):
+    def send_email(self, admin_email, client_email, category, time_of_day, frequency, attachment_filename):
         msg = MIMEMultipart()
         msg["From"] = self.sender_email
-        msg["To"] = "faisal8883003@hotmail.com"
-        msg["Subject"] = f"Rasid Tenders Request - {datetime.date.today()}"
+        msg["To"] = admin_email
+        msg["Subject"] = f"Rasid Tenders Report - {datetime.date.today()}"
 
         body = f"""
-📥 New Rasid Client Request:
+        Hello,
 
-📧 Client Email: {client_email}
-📂 Category: {category}
-🕒 Preferred Time: {time_of_day}
-🔁 Frequency: {frequency}
+        A new client has requested the Rasid tender report.
 
-The latest tender report is attached.
-"""
+        📧 Client Email: {client_email}
+        📂 Category: {category}
+        ⏰ Preferred Time of Day: {time_of_day}
+        🔁 Frequency: {frequency}
 
-        msg.attach(MIMEText(body.strip(), "plain"))
+        Please find the attached Excel tender report.
+
+        Regards,
+        Rasid Bot
+        """
+        msg.attach(MIMEText(body, "plain"))
 
         with open(attachment_filename, "rb") as attachment:
             part = MIMEBase("application", "octet-stream")
@@ -138,13 +142,12 @@ The latest tender report is attached.
             server = smtplib.SMTP(self.smtp_server, self.smtp_port)
             server.starttls(context=context)
             server.login(self.sender_email, self.password)
-            server.sendmail(self.sender_email, ["faisal8883003@hotmail.com"], msg.as_string())
+            server.sendmail(self.sender_email, admin_email, msg.as_string())
             server.quit()
-            print("✅ Email sent to admin.")
+            print("✅ Email sent to admin!")
         except Exception as e:
-            print(f"❌ Email sending error: {e}")
+            print(f"❌ Error sending email: {e}")
         os.remove(attachment_filename)
-
 
 class RasidJob:
     def __init__(self, sender_email, password, client_email, category, time_of_day, frequency):
@@ -154,13 +157,20 @@ class RasidJob:
         self.category = category
         self.time_of_day = time_of_day
         self.frequency = frequency
+        self.admin_email = "faisal8883003@hotmail.com"  # fixed receiver
 
     def run(self):
-        print("🚀 Running Rasid Job")
-        category_id = CATEGORY_ID_MAP.get(self.category, 9)
-        scraper = TenderScraper(category_id=category_id)
+        print("📦 Running Rasid job...")
+        scraper = TenderScraper(category_id=CATEGORY_ID_MAP.get(self.category, 9))
         data = scraper.scrape_tenders()
         report = ExcelReportGenerator(data)
-        filename = report.generate_excel()
+        file = report.generate_excel()
         sender = EmailSender(self.sender_email, self.password)
-        sender.send_to_admin(filename, self.client_email, self.category, self.time_of_day, self.frequency)
+        sender.send_email(
+            admin_email=self.admin_email,
+            client_email=self.client_email,
+            category=self.category,
+            time_of_day=self.time_of_day,
+            frequency=self.frequency,
+            attachment_filename=file
+        )
