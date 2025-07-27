@@ -187,7 +187,7 @@ elif menu == "Schedule Opportunities":
                     company_name=company_info['company_name'],
                     client_email=session_email,  # ✅ CORRECT
                     category=category,
-                    start_date: str(start_date),
+                    start_date= str(start_date),
                     time_of_day=start_time,
                     frequency=frequency
                 )
