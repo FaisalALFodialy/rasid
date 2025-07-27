@@ -183,9 +183,11 @@ elif menu == "Schedule Opportunities":
             try:
                 job = RasidJob(
                     sender_email="rasid.projects.news@gmail.com",
-                    password="sveiheahhbzidbnf",
-                    receiver_emails=[session_email],
-                    category=category
+                    password="your_app_password",
+                    client_email="client@example.com",  # ✅ CORRECT
+                    category="Education and Training",
+                    time_of_day="10:00 AM",
+                    frequency="Weekly"
                 )
                 job.run()
                 st.success("Scraping done and email sent!")
