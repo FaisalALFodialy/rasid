@@ -120,7 +120,7 @@ if menu == "Register":
         email = email.strip()
         company_name = company_name.strip()
 
-        if not company_name or not email:
+        if not company_name.strip() or not email.strip():
             st.error("Please fill in all fields.")
         elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             st.error("Please enter a valid email address.")
