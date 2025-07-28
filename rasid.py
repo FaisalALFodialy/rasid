@@ -95,37 +95,63 @@ def save_or_update_user(email, company_name, category, schedule=None):
 
     conn.commit()
     conn.close()
+    
+# Set initial navigation state
+if "page" not in st.session_state:
+    st.session_state.page = "Main"
+
+# Set email session
+if "logged_in_email" not in st.session_state:
+    st.session_state.logged_in_email = None
 
 # App title
 st.set_page_config(page_title="Rasid - Opportunity Tracker")
 st.title("راصد (Rasid) – Opportunity Tracker")
 
-# Sidebar for navigation
 st.sidebar.image("rasid.png", use_container_width=True)
 st.sidebar.title("About")
-st.sidebar.info(
-    "This intelligent Web Scraping tool is designed to recommend best Opportunities for Company."
-)
-menu = st.sidebar.selectbox("Navigation", ["Register", "Login", "Schedule Opportunities"])
+st.sidebar.info("This intelligent Web Scraping tool is designed to recommend best Opportunities for Company.")
+
+if st.session_state.logged_in_email:
+    st.sidebar.success(f"Logged in as {st.session_state.logged_in_email}")
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in_email = None
+        st.session_state.page = "Main"
 
 user_data = fetch_all_users()  # This returns a dict-like object
 session_email = st.session_state.get("logged_in_email")
-if menu == "Register":
+# MAIN PAGE
+if st.session_state.page == "Main":
+    st.title("📊 راصد (Rasid) – Opportunity Tracker")
+    st.markdown("""
+        Welcome to **Rasid**, the smart tool for tracking government tenders.
+
+        🔎 Automatically discover relevant opportunities  
+        📧 Schedule updates directly via email  
+        🏢 Designed for businesses of all sectors
+    """)
+    col1, col2 = st.columns(2)
+    if col1.button("Register"):
+        st.session_state.page = "Register"
+    if col2.button("Login"):
+        st.session_state.page = "Login"
+
+# REGISTER
+elif st.session_state.page == "Register":
     st.header("Register Your Company")
     company_name = st.text_input("Company Name")
     email = st.text_input("Company Email")
     category = st.selectbox("Company Category", CATEGORIES)
 
     if st.button("Register"):
-        company_name = company_name.strip()
         email = email.strip()
-    
-        if len(company_name) == 0 or len(email) == 0 or category not in CATEGORIES:
-            st.error("❌ Please fill in all fields correctly.")
+        company_name = company_name.strip()
+        if not company_name or not email:
+            st.error("Please fill in all fields.")
         elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            st.error("❌ Please enter a valid email address.")
+            st.error("Please enter a valid email address.")
         elif email in user_data:
-            st.error("⚠️ This email is already registered.")
+            st.error("This email is already registered.")
         else:
             user_data[email] = {
                 "company_name": company_name,
@@ -133,22 +159,25 @@ if menu == "Register":
                 "schedule": None
             }
             save_or_update_user(email, company_name, category)
-            st.success("✅ Company registered successfully! You can now login.")
-    
+            st.success("✅ Registered! Please login.")
+            st.session_state.page = "Login"
 
-
-elif menu == "Login":
+# LOGIN
+elif st.session_state.page == "Login":
     st.header("Login")
     login_email = st.text_input("Enter your email")
     if st.button("Login"):
         if login_email in user_data:
             st.session_state.logged_in_email = login_email
-            st.success(f"Welcome {user_data[login_email]['company_name']}")
+            st.session_state.page = "Schedule Opportunities"
+            st.success("Welcome back!")
         else:
             st.error("Email not registered.")
 
-elif menu == "Schedule Opportunities":
+# SCHEDULE OPPORTUNITIES
+elif st.session_state.page == "Schedule Opportunities":
     st.header("Set Up Opportunity Notifications")
+    session_email = st.session_state.get("logged_in_email")
     if session_email:
         company_info = user_data[session_email]
         st.markdown(f"**Company:** {company_info['company_name']}")
@@ -156,13 +185,39 @@ elif menu == "Schedule Opportunities":
         start_date = st.date_input("📅 Schedule Start Date", value=datetime.today())
         if "preferred_time" not in st.session_state:
             st.session_state.preferred_time = datetime.now().time()
-
         start_time = st.time_input("⏰ Preferred Time", value=st.session_state.preferred_time)
         frequency = st.selectbox("Send Opportunities", FREQUENCIES)
 
-
         if st.button("Submit Schedule"):
             user_data[session_email]["category"] = category
+            save_or_update_user(
+                email=session_email,
+                company_name=company_info['company_name'],
+                category=category,
+                schedule={
+                    "frequency": frequency,
+                    "start_date": str(start_date),
+                    "start_time": str(start_time),
+                    "last_updated": datetime.now().isoformat()
+                }
+            )
+            st.success("Schedule preferences saved!")
+            try:
+                job = RasidJob(
+                    sender_email="rasid.projects.news@gmail.com",
+                    password="sveiheahhbzidbnf",
+                    company_name=company_info['company_name'],
+                    client_email=session_email,
+                    category=category,
+                    start_date=str(start_date),
+                    time_of_day=start_time,
+                    frequency=frequency
+                )
+                job.run()
+            except Exception as e:
+                st.error(f"Unexpected error: {e}")
+    else:
+        st.warning("You must login to access this page.")
 
             # Save to database
             save_or_update_user(
