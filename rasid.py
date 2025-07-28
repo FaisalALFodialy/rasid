@@ -164,6 +164,7 @@ elif st.session_state.page == "Register":
             save_or_update_user(email, company_name, category)
             st.success("✅ Registered! Please login.")
             st.session_state.page = "Login"
+            st.rerun()  # 🔄 Redirect to login page immediately
 
 # LOGIN
 elif st.session_state.page == "Login":
