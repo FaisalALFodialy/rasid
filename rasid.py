@@ -132,8 +132,12 @@ if st.session_state.page == "Main":
     col1, col2 = st.columns(2)
     if col1.button("Register"):
         st.session_state.page = "Register"
+        st.rerun()  # 🔄 Immediately navigate to Register page
+    
     if col2.button("Login"):
         st.session_state.page = "Login"
+        st.rerun()  # 🔄 Immediately navigate to Login page
+
 
 # REGISTER
 elif st.session_state.page == "Register":
