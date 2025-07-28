@@ -216,38 +216,3 @@ elif st.session_state.page == "Schedule Opportunities":
                 job.run()
             except Exception as e:
                 st.error(f"Unexpected error: {e}")
-    else:
-        st.warning("You must login to access this page.")
-
-            # Save to database
-            save_or_update_user(
-                email=session_email,
-                company_name=company_info['company_name'],
-                category=category,
-                schedule={
-                    "frequency": frequency,
-                    "start_date": str(start_date),
-                    "start_time": str(start_time),
-                    "last_updated": datetime.now().isoformat()
-                }
-            )
-
-
-            st.success("Schedule preferences saved! for now you will receive updates via email after 3-4 minutes.")
-            
-            try:
-                job = RasidJob(
-                    sender_email="rasid.projects.news@gmail.com",
-                    password = "sveiheahhbzidbnf",
-                    company_name=company_info['company_name'],
-                    client_email=session_email,  # ✅ CORRECT
-                    category=category,
-                    start_date= str(start_date),
-                    time_of_day=start_time,
-                    frequency=frequency
-                )
-                job.run()
-            except ValueError as ve:
-                st.error(str(ve))
-            except Exception as e:
-                st.error(f"Unexpected error: {e}")
