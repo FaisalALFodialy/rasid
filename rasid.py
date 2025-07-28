@@ -162,6 +162,7 @@ elif st.session_state.page == "Register":
             st.session_state.page = "Login"
 
 # LOGIN
+# LOGIN
 elif st.session_state.page == "Login":
     st.header("Login")
     login_email = st.text_input("Enter your email")
@@ -170,8 +171,10 @@ elif st.session_state.page == "Login":
             st.session_state.logged_in_email = login_email
             st.session_state.page = "Schedule Opportunities"
             st.success("Welcome back!")
+            st.experimental_rerun()  # ✅ Force refresh to redirect immediately
         else:
             st.error("Email not registered.")
+
 
 # SCHEDULE OPPORTUNITIES
 elif st.session_state.page == "Schedule Opportunities":
