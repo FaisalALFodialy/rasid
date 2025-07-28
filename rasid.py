@@ -106,7 +106,6 @@ if "logged_in_email" not in st.session_state:
 
 # App title
 st.set_page_config(page_title="Rasid - Opportunity Tracker")
-st.title("راصد (Rasid) – Opportunity Tracker")
 
 st.sidebar.image("rasid.png", use_container_width=True)
 st.sidebar.title("About")
